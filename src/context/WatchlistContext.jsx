@@ -275,7 +275,8 @@ export default function WatchlistProvider({ children }) {
   // Load watchlists on mount
   useEffect(() => {
     fetchWatchlists();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const value = {
     watchlists,

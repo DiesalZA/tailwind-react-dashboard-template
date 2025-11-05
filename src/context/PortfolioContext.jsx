@@ -222,7 +222,8 @@ export default function PortfolioProvider({ children }) {
   // Load portfolios on mount
   useEffect(() => {
     fetchPortfolios();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const value = {
     portfolios,
