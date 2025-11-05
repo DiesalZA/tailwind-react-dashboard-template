@@ -255,9 +255,8 @@ const portfolioService = {
       formData,
       {
         params: { id: portfolioId },
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // Note: Do NOT set Content-Type header manually for FormData
+        // The browser will automatically set it with the correct boundary
       }
     );
   },
