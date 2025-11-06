@@ -67,7 +67,6 @@ export default function WatchlistSelector({
               }
             }}
             aria-label="Close watchlist selector"
-            tabIndex={-1}
           />
 
           {/* Dropdown menu */}
