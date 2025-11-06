@@ -47,8 +47,8 @@ export default function Watchlist() {
         description: newWatchlistDescription,
       });
 
-      // Only close modal and reset if successful
-      if (response && response.success !== false) {
+      // Only close modal and reset if explicitly successful
+      if (response?.success === true) {
         setShowCreateModal(false);
         setNewWatchlistName('');
         setNewWatchlistDescription('');
