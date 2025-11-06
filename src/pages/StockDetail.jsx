@@ -23,6 +23,7 @@ import {
   PriceChangeIndicator,
 } from '../components/stock';
 import { formatStockPrice } from '../utils/stockUtils';
+import { getStockData } from '../utils/mockData';
 
 export default function StockDetail() {
   const { symbol } = useParams();
@@ -46,22 +47,45 @@ export default function StockDetail() {
   const fetchStockData = async () => {
     setLoading(true);
 
-    // Fetch quote
-    const quoteResponse = await stockService.getQuote(symbol);
-    if (quoteResponse.success) {
-      setQuote(quoteResponse.data);
-    }
+    try {
+      // Fetch quote
+      const quoteResponse = await stockService.getQuote(symbol);
+      if (quoteResponse.success) {
+        setQuote(quoteResponse.data);
+      } else {
+        // Try mock data
+        const mockData = getStockData(symbol);
+        if (mockData) {
+          setQuote(mockData.quote);
+          setFundamentals(mockData.fundamentals);
+          setNews(mockData.news);
+          console.log(`📊 Using mock data for ${symbol}`);
+          setLoading(false);
+          return;
+        }
+      }
 
-    // Fetch fundamentals
-    const fundamentalsResponse = await stockService.getFundamentals(symbol);
-    if (fundamentalsResponse.success) {
-      setFundamentals(fundamentalsResponse.data);
-    }
+      // Fetch fundamentals
+      const fundamentalsResponse = await stockService.getFundamentals(symbol);
+      if (fundamentalsResponse.success) {
+        setFundamentals(fundamentalsResponse.data);
+      }
 
-    // Fetch news
-    const newsResponse = await stockService.getNews(symbol, 10);
-    if (newsResponse.success) {
-      setNews(newsResponse.data.articles || newsResponse.data || []);
+      // Fetch news
+      const newsResponse = await stockService.getNews(symbol, 10);
+      if (newsResponse.success) {
+        setNews(newsResponse.data.articles || newsResponse.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stock data:', error);
+      // Try mock data as fallback
+      const mockData = getStockData(symbol);
+      if (mockData) {
+        setQuote(mockData.quote);
+        setFundamentals(mockData.fundamentals);
+        setNews(mockData.news);
+        console.log(`📊 Using mock data for ${symbol} (API failed)`);
+      }
     }
 
     setLoading(false);
