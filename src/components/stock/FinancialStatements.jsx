@@ -215,7 +215,7 @@ export default function FinancialStatements({ symbol, financialData }) {
                       const value = financialData[activeStatement]?.[year]?.[item.key];
                       const displayValue = value !== undefined && value !== null
                         ? item.isRatio
-                          ? `$${value.toFixed(2)}`
+                          ? value.toFixed(2)
                           : formatValue(value)
                         : '—';
 
