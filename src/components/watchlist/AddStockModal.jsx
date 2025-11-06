@@ -55,7 +55,9 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
   }, [isOpen]);
 
   // Memoize focusable elements to avoid expensive DOM queries on every keypress
-  // Recalculate only when modal opens/closes or content changes
+  // Recalculate only when modal opens/closes or focusable elements change
+  // - selectedStock: Adds/removes "Clear selection" button (line 210)
+  // - isAdding: Disables/enables Cancel and Add buttons (lines 254, 260)
   const focusableElements = useMemo(() => {
     if (!isOpen || !modalRef.current) return [];
 
