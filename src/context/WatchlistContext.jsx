@@ -306,7 +306,7 @@ export default function WatchlistProvider({ children }) {
         // Refresh watchlist list
         try {
           await fetchWatchlists();
-          selectWatchlist(response.data.id);
+          await selectWatchlist(response.data.id);
         } catch (refreshError) {
           console.warn('Failed to refresh after creating watchlist:', refreshError);
           // Watchlist was created successfully, just couldn't refresh the list
