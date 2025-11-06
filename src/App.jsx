@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import StockDetail from './pages/StockDetail';
 import Portfolio from './pages/Portfolio';
 import Screener from './pages/Screener';
+import DevTools from './pages/DevTools';
 
 function App() {
 
@@ -31,6 +32,7 @@ function App() {
         <Route exact path="/" element={<Dashboard />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/screener" element={<Screener />} />
+        <Route path="/dev-tools" element={<DevTools />} />
         <Route path="/stock/:symbol" element={<StockDetail />} />
       </Routes>
     </>
