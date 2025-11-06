@@ -30,8 +30,8 @@ function Sidebar({
 
   // close if the esc key is pressed
   useEffect(() => {
-    const keyHandler = ({ keyCode }) => {
-      if (!sidebarOpen || keyCode !== 27) return;
+    const keyHandler = ({ key }) => {
+      if (!sidebarOpen || key !== 'Escape') return;
       setSidebarOpen(false);
     };
     document.addEventListener("keydown", keyHandler);

@@ -24,8 +24,8 @@ function ModalSearch({
 
   // close if the esc key is pressed
   useEffect(() => {
-    const keyHandler = ({ keyCode }) => {
-      if (!modalOpen || keyCode !== 27) return;
+    const keyHandler = ({ key }) => {
+      if (!modalOpen || key !== 'Escape') return;
       setModalOpen(false);
     };
     document.addEventListener('keydown', keyHandler);

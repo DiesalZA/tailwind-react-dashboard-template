@@ -26,8 +26,8 @@ function DropdownProfile({
 
   // close if the esc key is pressed
   useEffect(() => {
-    const keyHandler = ({ keyCode }) => {
-      if (!dropdownOpen || keyCode !== 27) return;
+    const keyHandler = ({ key }) => {
+      if (!dropdownOpen || key !== 'Escape') return;
       setDropdownOpen(false);
     };
     document.addEventListener('keydown', keyHandler);
