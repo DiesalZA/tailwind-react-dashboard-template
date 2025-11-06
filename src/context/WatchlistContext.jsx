@@ -306,7 +306,19 @@ export default function WatchlistProvider({ children }) {
         // Refresh watchlist list
         try {
           await fetchWatchlists();
-          await selectWatchlist(response.data.id);
+
+          // Verify the watchlist still exists before selecting
+          // This prevents race conditions if user navigated away or watchlist was deleted
+          setWatchlists((currentWatchlists) => {
+            const watchlistExists = currentWatchlists.some(w => w.id === response.data.id);
+            if (watchlistExists) {
+              // Safe to select - watchlist exists in current state
+              selectWatchlist(response.data.id);
+            } else {
+              console.warn('Created watchlist not found in refreshed list, skipping auto-select');
+            }
+            return currentWatchlists; // Return unchanged
+          });
         } catch (refreshError) {
           console.warn('Failed to refresh after creating watchlist:', refreshError);
           // Watchlist was created successfully, just couldn't refresh the list
