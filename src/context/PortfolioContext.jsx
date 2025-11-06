@@ -42,18 +42,12 @@ export default function PortfolioProvider({ children }) {
     if (response.success) {
       const portfolioList = response.data.portfolios || response.data || [];
       setPortfolios(portfolioList);
-
-      // Auto-select first portfolio if none selected
-      // Note: Using currentPortfolio from closure is safe here since this only runs once on mount
-      if (!currentPortfolio && portfolioList.length > 0) {
-        selectPortfolio(portfolioList[0].id);
-      }
     } else {
       setError(response.error);
     }
 
     setLoading(false);
-  }, [selectPortfolio]); // selectPortfolio is stable, so fetchPortfolios is stable
+  }, []); // Stable - no dependencies, just fetches and updates state
 
   /**
    * Select a portfolio and fetch its holdings
@@ -224,6 +218,13 @@ export default function PortfolioProvider({ children }) {
   useEffect(() => {
     fetchPortfolios();
   }, [fetchPortfolios]);
+
+  // Auto-select first portfolio if none selected
+  useEffect(() => {
+    if (!currentPortfolio && portfolios.length > 0) {
+      selectPortfolio(portfolios[0].id);
+    }
+  }, [portfolios, currentPortfolio, selectPortfolio]);
 
   const value = {
     portfolios,
