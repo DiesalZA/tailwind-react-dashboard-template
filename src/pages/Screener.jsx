@@ -57,17 +57,30 @@ export default function Screener() {
     setError(null);
 
     try {
-      // Build query parameters from filters
+      // Build query parameters from filters with validation
       const params = {};
 
-      if (filters.priceMin) params.priceMin = parseFloat(filters.priceMin);
-      if (filters.priceMax) params.priceMax = parseFloat(filters.priceMax);
-      if (filters.volumeMin) params.volumeMin = parseInt(filters.volumeMin);
-      if (filters.peMin) params.peMin = parseFloat(filters.peMin);
-      if (filters.peMax) params.peMax = parseFloat(filters.peMax);
-      if (filters.dividendYieldMin) params.dividendYieldMin = parseFloat(filters.dividendYieldMin);
-      if (filters.changeDayMin) params.changeDayMin = parseFloat(filters.changeDayMin);
-      if (filters.changeDayMax) params.changeDayMax = parseFloat(filters.changeDayMax);
+      // Helper function to safely parse and validate numeric values
+      const addNumericParam = (key, value, parser = parseFloat) => {
+        if (value) {
+          const parsed = parser(value);
+          if (!isNaN(parsed)) {
+            params[key] = parsed;
+          }
+        }
+      };
+
+      // Add numeric filters with validation
+      addNumericParam('priceMin', filters.priceMin);
+      addNumericParam('priceMax', filters.priceMax);
+      addNumericParam('volumeMin', filters.volumeMin, parseInt);
+      addNumericParam('peMin', filters.peMin);
+      addNumericParam('peMax', filters.peMax);
+      addNumericParam('dividendYieldMin', filters.dividendYieldMin);
+      addNumericParam('changeDayMin', filters.changeDayMin);
+      addNumericParam('changeDayMax', filters.changeDayMax);
+
+      // Add array filters
       if (filters.marketCap?.length) params.marketCap = filters.marketCap.join(',');
       if (filters.sectors?.length) params.sectors = filters.sectors.join(',');
 
