@@ -4,12 +4,16 @@
  * Manages saved screener configurations
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, onSave, currentFilters }) {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [screenName, setScreenName] = useState('');
   const [screenDescription, setScreenDescription] = useState('');
+
+  const modalRef = useRef(null);
+  const triggerRef = useRef(null);
+  const firstFocusableRef = useRef(null);
 
   const handleSave = () => {
     if (!screenName.trim()) return;
@@ -23,7 +27,15 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
 
     setScreenName('');
     setScreenDescription('');
+    closeModal();
+  };
+
+  const closeModal = () => {
     setShowSaveModal(false);
+    // Return focus to trigger button
+    if (triggerRef.current) {
+      triggerRef.current.focus();
+    }
   };
 
   const getFilterSummary = (filters) => {
@@ -48,6 +60,71 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
     return parts.length > 0 ? parts.join(' • ') : 'No filters applied';
   };
 
+  // ESC key handler to close modal
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && showSaveModal) {
+        closeModal();
+        setScreenName('');
+        setScreenDescription('');
+      }
+    };
+
+    if (showSaveModal) {
+      document.addEventListener('keydown', handleEsc);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [showSaveModal]);
+
+  // Focus trap and initial focus
+  useEffect(() => {
+    if (!showSaveModal || !modalRef.current) return;
+
+    // Focus first input when modal opens
+    if (firstFocusableRef.current) {
+      firstFocusableRef.current.focus();
+    }
+
+    // Get all focusable elements in the modal
+    const getFocusableElements = () => {
+      return modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+    };
+
+    // Focus trap handler
+    const handleTabKey = (e) => {
+      const focusableElements = getFocusableElements();
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          // Shift + Tab: if focused on first element, move to last
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab: if focused on last element, move to first
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+
+    return () => {
+      document.removeEventListener('keydown', handleTabKey);
+    };
+  }, [showSaveModal]);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700/60">
       {/* Header */}
@@ -57,8 +134,10 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
             Saved Screens
           </h2>
           <button
+            ref={triggerRef}
             onClick={() => setShowSaveModal(true)}
             className="text-sm text-violet-500 hover:text-violet-600 dark:text-violet-400 dark:hover:text-violet-500 font-medium"
+            aria-haspopup="dialog"
           >
             + Save Current
           </button>
@@ -159,9 +238,28 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
 
       {/* Save modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            // Close modal when clicking backdrop
+            if (e.target === e.currentTarget) {
+              closeModal();
+              setScreenName('');
+              setScreenDescription('');
+            }
+          }}
+        >
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-screen-modal-title"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full p-6"
+          >
+            <h3
+              id="save-screen-modal-title"
+              className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4"
+            >
               Save Screen
             </h3>
             <div className="space-y-4">
@@ -170,12 +268,18 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
                   Screen Name *
                 </label>
                 <input
+                  ref={firstFocusableRef}
                   type="text"
                   value={screenName}
                   onChange={(e) => setScreenName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && screenName.trim()) {
+                      handleSave();
+                    }
+                  }}
                   placeholder="e.g., High Dividend Tech Stocks"
                   className="form-input w-full"
-                  autoFocus
+                  aria-required="true"
                 />
               </div>
               <div>
@@ -194,18 +298,21 @@ export default function SavedScreeners({ savedScreeners = [], onLoad, onDelete, 
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => {
-                  setShowSaveModal(false);
+                  closeModal();
                   setScreenName('');
                   setScreenDescription('');
                 }}
                 className="btn border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-300"
+                type="button"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={!screenName.trim()}
+                aria-disabled={!screenName.trim()}
                 className="btn bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
               >
                 Save Screen
               </button>
