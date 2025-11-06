@@ -501,6 +501,12 @@ export const mockStocks = {
 
 // Helper function to get stock data by symbol
 export function getStockData(symbol) {
+  // Validate symbol parameter
+  if (!symbol || typeof symbol !== 'string') {
+    console.warn('getStockData: Invalid symbol provided:', symbol);
+    return null;
+  }
+
   const upperSymbol = symbol.toUpperCase();
   if (mockStocks[upperSymbol]) {
     return mockStocks[upperSymbol];
