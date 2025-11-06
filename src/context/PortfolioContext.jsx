@@ -44,6 +44,7 @@ export default function PortfolioProvider({ children }) {
       setPortfolios(portfolioList);
 
       // Auto-select first portfolio if none selected
+      // Note: Using currentPortfolio from closure is safe here since this only runs once on mount
       if (!currentPortfolio && portfolioList.length > 0) {
         selectPortfolio(portfolioList[0].id);
       }
@@ -52,7 +53,7 @@ export default function PortfolioProvider({ children }) {
     }
 
     setLoading(false);
-  }, [currentPortfolio]);
+  }, [selectPortfolio]); // selectPortfolio is stable, so fetchPortfolios is stable
 
   /**
    * Select a portfolio and fetch its holdings
@@ -222,8 +223,7 @@ export default function PortfolioProvider({ children }) {
   // Load portfolios on mount
   useEffect(() => {
     fetchPortfolios();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [fetchPortfolios]);
 
   const value = {
     portfolios,

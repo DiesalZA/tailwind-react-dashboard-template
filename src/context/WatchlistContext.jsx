@@ -41,6 +41,7 @@ export default function WatchlistProvider({ children }) {
       setWatchlists(watchlistList);
 
       // Auto-select first watchlist if none selected
+      // Note: Using currentWatchlist from closure is safe here since this only runs once on mount
       if (!currentWatchlist && watchlistList.length > 0) {
         selectWatchlist(watchlistList[0].id);
       }
@@ -49,7 +50,7 @@ export default function WatchlistProvider({ children }) {
     }
 
     setLoading(false);
-  }, [currentWatchlist]);
+  }, [selectWatchlist]); // selectWatchlist is stable, so fetchWatchlists is stable
 
   /**
    * Select a watchlist and fetch its items
@@ -275,8 +276,7 @@ export default function WatchlistProvider({ children }) {
   // Load watchlists on mount
   useEffect(() => {
     fetchWatchlists();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [fetchWatchlists]);
 
   const value = {
     watchlists,
