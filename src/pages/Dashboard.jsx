@@ -12,7 +12,6 @@ import WatchlistMovers from '../partials/dashboard/WatchlistMovers';
 import MarketSummary from '../partials/dashboard/MarketSummary';
 import RecentActivity from '../partials/dashboard/RecentActivity';
 import SectorAllocation from '../partials/dashboard/SectorAllocation';
-import Banner from '../partials/Banner';
 
 function Dashboard() {
 
@@ -95,8 +94,6 @@ function Dashboard() {
 
           </div>
         </main>
-
-        <Banner />
 
       </div>
     </div>
