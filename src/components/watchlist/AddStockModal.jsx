@@ -4,7 +4,7 @@
  * Modal for adding stocks to a watchlist with search and notes
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import StockSearchBar from '../stock/StockSearchBar';
 import PriceChangeIndicator from '../stock/PriceChangeIndicator';
 import { formatStockPrice } from '../../utils/stockUtils';
@@ -54,24 +54,17 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
     }
   }, [isOpen]);
 
-  // Memoize focusable elements to avoid expensive DOM queries on every keypress
-  // Recalculate only when modal opens/closes or focusable elements change
-  // - selectedStock: Adds/removes "Clear selection" button (line 210)
-  // - isAdding: Disables/enables Cancel and Add buttons (lines 254, 260)
-  const focusableElements = useMemo(() => {
-    if (!isOpen || !modalRef.current) return [];
-
-    const elements = modalRef.current.querySelectorAll(
-      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-
-    return Array.from(elements);
-  }, [isOpen, selectedStock, isAdding]);
-
-  // Focus trap
+  // Focus trap - compute focusable elements on each Tab keypress
+  // Performance impact is negligible as this only runs on Tab keypresses
   useEffect(() => {
     const handleTab = (e) => {
-      if (!isOpen || e.key !== 'Tab') return;
+      if (!isOpen || e.key !== 'Tab' || !modalRef.current) return;
+
+      // Get focusable elements at the time of the keypress
+      const elements = modalRef.current.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      const focusableElements = Array.from(elements);
 
       if (focusableElements.length === 0) return;
 
@@ -97,7 +90,7 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
       document.addEventListener('keydown', handleTab);
       return () => document.removeEventListener('keydown', handleTab);
     }
-  }, [isOpen, focusableElements]);
+  }, [isOpen]);
 
   const handleClose = () => {
     setSelectedStock(null);
