@@ -31,6 +31,22 @@ export default function PortfolioProvider({ children }) {
   const [error, setError] = useState(null);
 
   /**
+   * Safely parse JSON from localStorage
+   */
+  const safeParseMockData = () => {
+    try {
+      const mockData = localStorage.getItem('mockPortfolioData');
+      if (!mockData) return null;
+      return JSON.parse(mockData);
+    } catch (parseError) {
+      console.error('Failed to parse mock portfolio data:', parseError);
+      // Clear corrupted data
+      localStorage.removeItem('mockPortfolioData');
+      return null;
+    }
+  };
+
+  /**
    * Fetch all portfolios for the current user
    */
   const fetchPortfolios = useCallback(async () => {
@@ -45,10 +61,9 @@ export default function PortfolioProvider({ children }) {
         setPortfolios(portfolioList);
       } else {
         // Try to load mock data from localStorage
-        const mockData = localStorage.getItem('mockPortfolioData');
-        if (mockData) {
-          const { portfolios: mockPortfolios } = JSON.parse(mockData);
-          setPortfolios(mockPortfolios);
+        const mockData = safeParseMockData();
+        if (mockData && mockData.portfolios) {
+          setPortfolios(mockData.portfolios);
           console.log('📊 Using mock portfolio data');
         } else {
           setError(response.error);
@@ -56,10 +71,9 @@ export default function PortfolioProvider({ children }) {
       }
     } catch (err) {
       // On error, try to load mock data
-      const mockData = localStorage.getItem('mockPortfolioData');
-      if (mockData) {
-        const { portfolios: mockPortfolios } = JSON.parse(mockData);
-        setPortfolios(mockPortfolios);
+      const mockData = safeParseMockData();
+      if (mockData && mockData.portfolios) {
+        setPortfolios(mockData.portfolios);
         console.log('📊 Using mock portfolio data (API failed)');
       } else {
         setError(err.message || 'Failed to fetch portfolios');
@@ -82,14 +96,13 @@ export default function PortfolioProvider({ children }) {
 
       if (!portfolioResponse.success) {
         // Try mock data
-        const mockData = localStorage.getItem('mockPortfolioData');
-        if (mockData) {
-          const { portfolios: mockPortfolios, holdings: mockHoldings, transactions: mockTransactions } = JSON.parse(mockData);
-          const portfolio = mockPortfolios.find(p => p.id === portfolioId);
+        const mockData = safeParseMockData();
+        if (mockData && mockData.portfolios && mockData.holdings && mockData.transactions) {
+          const portfolio = mockData.portfolios.find(p => p.id === portfolioId);
           if (portfolio) {
             setCurrentPortfolio(portfolio);
-            setHoldings(mockHoldings.filter(h => h.portfolioId === portfolioId));
-            setTransactions(mockTransactions.filter(t => t.portfolioId === portfolioId));
+            setHoldings(mockData.holdings.filter(h => h.portfolioId === portfolioId));
+            setTransactions(mockData.transactions.filter(t => t.portfolioId === portfolioId));
             console.log('📊 Using mock portfolio details');
             setLoading(false);
             return;
@@ -112,16 +125,19 @@ export default function PortfolioProvider({ children }) {
       }
     } catch (err) {
       // Try mock data on error
-      const mockData = localStorage.getItem('mockPortfolioData');
-      if (mockData) {
-        const { portfolios: mockPortfolios, holdings: mockHoldings, transactions: mockTransactions } = JSON.parse(mockData);
-        const portfolio = mockPortfolios.find(p => p.id === portfolioId);
+      const mockData = safeParseMockData();
+      if (mockData && mockData.portfolios && mockData.holdings && mockData.transactions) {
+        const portfolio = mockData.portfolios.find(p => p.id === portfolioId);
         if (portfolio) {
           setCurrentPortfolio(portfolio);
-          setHoldings(mockHoldings.filter(h => h.portfolioId === portfolioId));
-          setTransactions(mockTransactions.filter(t => t.portfolioId === portfolioId));
+          setHoldings(mockData.holdings.filter(h => h.portfolioId === portfolioId));
+          setTransactions(mockData.transactions.filter(t => t.portfolioId === portfolioId));
           console.log('📊 Using mock portfolio details (API failed)');
+        } else {
+          setError('Portfolio not found');
         }
+      } else {
+        setError(err.message || 'Failed to load portfolio');
       }
     }
 
