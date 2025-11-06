@@ -57,9 +57,17 @@ export default function WatchlistSelector({
       {showDropdown && (
         <>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-10"
+          <button
+            type="button"
+            className="fixed inset-0 z-10 cursor-default"
             onClick={() => setShowDropdown(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowDropdown(false);
+              }
+            }}
+            aria-label="Close watchlist selector"
+            tabIndex={-1}
           />
 
           {/* Dropdown menu */}
