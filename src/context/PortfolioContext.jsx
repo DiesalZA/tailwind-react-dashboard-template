@@ -42,17 +42,12 @@ export default function PortfolioProvider({ children }) {
     if (response.success) {
       const portfolioList = response.data.portfolios || response.data || [];
       setPortfolios(portfolioList);
-
-      // Auto-select first portfolio if none selected
-      if (!currentPortfolio && portfolioList.length > 0) {
-        selectPortfolio(portfolioList[0].id);
-      }
     } else {
       setError(response.error);
     }
 
     setLoading(false);
-  }, [currentPortfolio]);
+  }, []); // Stable - no dependencies, just fetches and updates state
 
   /**
    * Select a portfolio and fetch its holdings
@@ -222,7 +217,14 @@ export default function PortfolioProvider({ children }) {
   // Load portfolios on mount
   useEffect(() => {
     fetchPortfolios();
-  }, []);
+  }, [fetchPortfolios]);
+
+  // Auto-select first portfolio if none selected
+  useEffect(() => {
+    if (!currentPortfolio && portfolios.length > 0) {
+      selectPortfolio(portfolios[0].id);
+    }
+  }, [portfolios, currentPortfolio, selectPortfolio]);
 
   const value = {
     portfolios,

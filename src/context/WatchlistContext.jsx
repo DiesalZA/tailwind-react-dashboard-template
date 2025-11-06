@@ -39,17 +39,12 @@ export default function WatchlistProvider({ children }) {
     if (response.success) {
       const watchlistList = response.data.watchlists || response.data || [];
       setWatchlists(watchlistList);
-
-      // Auto-select first watchlist if none selected
-      if (!currentWatchlist && watchlistList.length > 0) {
-        selectWatchlist(watchlistList[0].id);
-      }
     } else {
       setError(response.error);
     }
 
     setLoading(false);
-  }, [currentWatchlist]);
+  }, []); // Stable - no dependencies, just fetches and updates state
 
   /**
    * Select a watchlist and fetch its items
@@ -275,7 +270,14 @@ export default function WatchlistProvider({ children }) {
   // Load watchlists on mount
   useEffect(() => {
     fetchWatchlists();
-  }, []);
+  }, [fetchWatchlists]);
+
+  // Auto-select first watchlist if none selected
+  useEffect(() => {
+    if (!currentWatchlist && watchlists.length > 0) {
+      selectWatchlist(watchlists[0].id);
+    }
+  }, [watchlists, currentWatchlist, selectWatchlist]);
 
   const value = {
     watchlists,
