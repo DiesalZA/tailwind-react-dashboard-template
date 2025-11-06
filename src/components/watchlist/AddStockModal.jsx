@@ -4,7 +4,7 @@
  * Modal for adding stocks to a watchlist with search and notes
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import StockSearchBar from '../stock/StockSearchBar';
 import PriceChangeIndicator from '../stock/PriceChangeIndicator';
 import { formatStockPrice } from '../../utils/stockUtils';
@@ -54,16 +54,24 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
     }
   }, [isOpen]);
 
+  // Memoize focusable elements to avoid expensive DOM queries on every keypress
+  // Recalculate only when modal opens/closes or content changes
+  const focusableElements = useMemo(() => {
+    if (!isOpen || !modalRef.current) return [];
+
+    const elements = modalRef.current.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+
+    return Array.from(elements);
+  }, [isOpen, selectedStock, isAdding]);
+
   // Focus trap
   useEffect(() => {
     const handleTab = (e) => {
       if (!isOpen || e.key !== 'Tab') return;
 
-      const focusableElements = modalRef.current?.querySelectorAll(
-        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-
-      if (!focusableElements || focusableElements.length === 0) return;
+      if (focusableElements.length === 0) return;
 
       const firstElement = focusableElements[0];
       const lastElement = focusableElements[focusableElements.length - 1];
@@ -87,7 +95,7 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
       document.addEventListener('keydown', handleTab);
       return () => document.removeEventListener('keydown', handleTab);
     }
-  }, [isOpen]);
+  }, [isOpen, focusableElements]);
 
   const handleClose = () => {
     setSelectedStock(null);
