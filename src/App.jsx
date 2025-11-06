@@ -12,6 +12,7 @@ import './charts/ChartjsConfig';
 // Import pages
 import Dashboard from './pages/Dashboard';
 import StockDetail from './pages/StockDetail';
+import Portfolio from './pages/Portfolio';
 
 function App() {
 
@@ -27,6 +28,7 @@ function App() {
     <>
       <Routes>
         <Route exact path="/" element={<Dashboard />} />
+        <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/stock/:symbol" element={<StockDetail />} />
       </Routes>
     </>
