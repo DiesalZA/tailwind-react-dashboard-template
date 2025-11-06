@@ -381,6 +381,134 @@ export const mockStockNews = [
   },
 ];
 
+// Mock stock data organized by symbol
+export const mockStocks = {
+  AAPL: {
+    quote: mockStockQuote,
+    fundamentals: mockStockFundamentals,
+    news: mockStockNews,
+  },
+  MSFT: {
+    quote: {
+      symbol: 'MSFT',
+      name: 'Microsoft Corporation',
+      price: 378.91,
+      change: -1.23,
+      changePercent: -0.32,
+      open: 380.50,
+      high: 382.15,
+      low: 377.80,
+      previousClose: 380.14,
+      volume: 23456789,
+      marketCap: 2810000000000,
+      pe: 32.1,
+      eps: 11.80,
+      dividendYield: 0.79,
+      fiftyTwoWeekHigh: 420.82,
+      fiftyTwoWeekLow: 309.45,
+      averageVolume: 25340000,
+      beta: 0.89,
+    },
+    fundamentals: {
+      symbol: 'MSFT',
+      companyName: 'Microsoft Corporation',
+      description:
+        'Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates through Productivity and Business Processes, Intelligent Cloud, and More Personal Computing segments. It offers Office, Exchange, SharePoint, Microsoft Teams, Office 365, Dynamics 365, and LinkedIn. The company also provides Azure, GitHub, Windows, Xbox, Surface, and cloud-based solutions.',
+      ceo: 'Satya Nadella',
+      employees: 221000,
+      sector: 'Technology',
+      industry: 'Software - Infrastructure',
+      website: 'https://www.microsoft.com',
+      headquarters: 'Redmond, WA',
+      founded: '1975',
+      marketCap: 2810000000000,
+      revenue: 211915000000,
+      revenueGrowth: 7.2,
+      grossProfit: 146052000000,
+      grossMargin: 68.93,
+      netIncome: 72738000000,
+      netMargin: 34.33,
+      pe: 32.1,
+      pb: 11.5,
+      ps: 13.27,
+      debtToEquity: 0.35,
+      currentRatio: 1.77,
+      quickRatio: 1.75,
+      roe: 38.52,
+      roa: 18.76,
+      dividendYield: 0.79,
+      dividendPayoutRatio: 25.4,
+    },
+    news: [
+      {
+        id: 'news-msft-1',
+        title: 'Microsoft Azure Revenue Grows 29% as Cloud Demand Surges',
+        source: 'Bloomberg',
+        url: '#',
+        publishedAt: '2024-11-04T13:00:00.000Z',
+        summary:
+          'Microsoft reports strong Azure cloud growth driven by AI services and enterprise migration. CEO Satya Nadella highlights AI integration as key growth driver.',
+        sentiment: 'positive',
+        image: 'https://via.placeholder.com/400x200/0078d4/ffffff?text=Azure+Growth',
+      },
+      {
+        id: 'news-msft-2',
+        title: 'Microsoft Copilot AI Assistant Reaches 1 Million Business Users',
+        source: 'TechCrunch',
+        url: '#',
+        publishedAt: '2024-11-02T15:30:00.000Z',
+        summary:
+          'Microsoft 365 Copilot crosses major adoption milestone with enterprises reporting significant productivity gains from AI-powered features.',
+        sentiment: 'positive',
+        image: 'https://via.placeholder.com/400x200/0078d4/ffffff?text=Copilot',
+      },
+      {
+        id: 'news-msft-3',
+        title: 'Microsoft Gaming Division Posts Record Revenue After Activision Deal',
+        source: 'CNBC',
+        url: '#',
+        publishedAt: '2024-10-31T10:45:00.000Z',
+        summary:
+          'First full quarter with Activision Blizzard shows strong gaming revenue growth, with Call of Duty and Game Pass subscriptions driving results.',
+        sentiment: 'positive',
+        image: 'https://via.placeholder.com/400x200/0078d4/ffffff?text=Gaming',
+      },
+      {
+        id: 'news-msft-4',
+        title: 'Microsoft Faces Antitrust Probe Over Teams Bundling in EU',
+        source: 'Financial Times',
+        url: '#',
+        publishedAt: '2024-10-29T14:20:00.000Z',
+        summary:
+          'European Commission investigates Microsoft practice of bundling Teams with Office 365, following complaints from Slack and other competitors.',
+        sentiment: 'negative',
+        image: 'https://via.placeholder.com/400x200/ef4444/ffffff?text=EU+Antitrust',
+      },
+      {
+        id: 'news-msft-5',
+        title: 'Microsoft Invests $3.2B in AI Data Centers Across US',
+        source: 'Reuters',
+        url: '#',
+        publishedAt: '2024-10-27T09:15:00.000Z',
+        summary:
+          'Microsoft announces major infrastructure investment to support growing AI workloads and Azure demand, creating thousands of jobs.',
+        sentiment: 'neutral',
+        image: 'https://via.placeholder.com/400x200/8b5cf6/ffffff?text=Data+Centers',
+      },
+    ],
+  },
+};
+
+// Helper function to get stock data by symbol
+export function getStockData(symbol) {
+  const upperSymbol = symbol.toUpperCase();
+  if (mockStocks[upperSymbol]) {
+    return mockStocks[upperSymbol];
+  }
+  // Return null if stock not found
+  return null;
+}
+
 // Helper function to load mock data into contexts
 export function loadMockData() {
   // Store mock portfolios in localStorage for PortfolioContext

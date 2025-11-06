@@ -130,11 +130,11 @@ export default function DevTools() {
                   <li>• 6 stock holdings (AAPL, MSFT, GOOGL, NVDA, AMZN, TSLA)</li>
                   <li>• 8 transactions (buys, sells, dividends)</li>
                   <li>• 2 watchlists with 3 stocks</li>
-                  <li>• Sample stock data (AAPL quote, fundamentals, news)</li>
+                  <li>• Stock detail data for AAPL & MSFT (quote, fundamentals, news)</li>
                 </ul>
               </div>
 
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   onClick={() => navigate('/portfolio')}
                   className="btn border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-300"
@@ -145,7 +145,13 @@ export default function DevTools() {
                   onClick={() => navigate('/stock/AAPL')}
                   className="btn border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-300"
                 >
-                  View AAPL Stock
+                  View AAPL
+                </button>
+                <button
+                  onClick={() => navigate('/stock/MSFT')}
+                  className="btn border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-300"
+                >
+                  View MSFT
                 </button>
               </div>
             </div>
