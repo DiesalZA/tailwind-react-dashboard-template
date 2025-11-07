@@ -2,19 +2,276 @@
 
 ## Overview
 
-This document outlines the Django data models for the stock research platform and portfolio management tool. The backend integrates with **Authentik** for authentication and provides REST APIs for the React frontend.
+This document outlines the Django data models for the stock research platform and portfolio management tool. The backend uses a **multi-database architecture** with separate databases for shared data and user-specific data. The backend integrates with **Authentik** for authentication and provides REST APIs for the React frontend.
 
 ## Technology Stack
 
 - **Framework**: Django 5.0+ with Django REST Framework
-- **Database**: PostgreSQL (recommended for production)
+- **Database**: PostgreSQL (multi-database setup)
+  - **Common DB**: Authentication and shared stock data
+  - **User DB**: User-specific portfolios, watchlists, and analysis
 - **Authentication**: Authentik (self-hosted SSO)
 - **API**: REST with DRF, JSON responses
 - **Stock Data**: External API integration (Alpha Vantage, Finnhub, or similar)
 
 ---
 
+## Multi-Database Architecture
+
+### Database Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         COMMON DB                            │
+│  (Shared across all users - read-heavy)                     │
+├─────────────────────────────────────────────────────────────┤
+│  • User (authentication, profile)                            │
+│  • UserPreferences                                           │
+│  • StockQuote (cached price data)                           │
+│  • StockFundamentals (cached company data)                  │
+│  • ReferenceData (sectors, exchanges, industries)           │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                         USER DB                              │
+│  (User-specific data - write-heavy)                         │
+├─────────────────────────────────────────────────────────────┤
+│  • Portfolio, Holding, Transaction                          │
+│  • Watchlist, WatchlistItem                                 │
+│  • StockAnalysis                                            │
+│  • PriceAlert                                               │
+│  • SavedScreener                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Benefits
+
+1. **Performance**: Separate read-heavy (stock data) from write-heavy (user data)
+2. **Scaling**: Can scale databases independently
+3. **Isolation**: User data isolated from shared data
+4. **Caching**: Common DB can be heavily cached/replicated
+5. **Backup**: Different backup strategies for each DB
+6. **Security**: Additional isolation layer for user financial data
+
+### Django Database Configuration
+
+```python
+# settings.py
+
+DATABASES = {
+    'default': {
+        # Common DB - Auth and shared stock data
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('COMMON_DB_NAME', 'stockplatform_common'),
+        'USER': os.getenv('COMMON_DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('COMMON_DB_PASSWORD'),
+        'HOST': os.getenv('COMMON_DB_HOST', 'localhost'),
+        'PORT': os.getenv('COMMON_DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    },
+    'userdata': {
+        # User DB - Portfolios, watchlists, analysis
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('USER_DB_NAME', 'stockplatform_userdata'),
+        'USER': os.getenv('USER_DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('USER_DB_PASSWORD'),
+        'HOST': os.getenv('USER_DB_HOST', 'localhost'),
+        'PORT': os.getenv('USER_DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    },
+}
+
+# Database routers
+DATABASE_ROUTERS = ['core.routers.MultiDBRouter']
+```
+
+### Database Router
+
+```python
+# core/routers.py
+
+class MultiDBRouter:
+    """
+    Route database operations based on model's app label
+
+    Common DB: accounts, stocks
+    User DB: portfolios, watchlists, analysis, screeners
+    """
+
+    # Apps that use the common database
+    common_db_apps = {'accounts', 'stocks'}
+
+    # Apps that use the userdata database
+    user_db_apps = {'portfolios', 'watchlists', 'analysis', 'screeners'}
+
+    def db_for_read(self, model, **hints):
+        """Direct reads to appropriate database"""
+        if model._meta.app_label in self.common_db_apps:
+            return 'default'
+        if model._meta.app_label in self.user_db_apps:
+            return 'userdata'
+        return None
+
+    def db_for_write(self, model, **hints):
+        """Direct writes to appropriate database"""
+        if model._meta.app_label in self.common_db_apps:
+            return 'default'
+        if model._meta.app_label in self.user_db_apps:
+            return 'userdata'
+        return None
+
+    def allow_relation(self, obj1, obj2, **hints):
+        """
+        Allow relations between models in the same database
+        Special case: Allow User (common) to relate to user data models
+        """
+        if obj1._meta.app_label in self.common_db_apps and \
+           obj2._meta.app_label in self.common_db_apps:
+            return True
+
+        if obj1._meta.app_label in self.user_db_apps and \
+           obj2._meta.app_label in self.user_db_apps:
+            return True
+
+        # Allow User (common) to be referenced by user data models
+        if (obj1._meta.app_label == 'accounts' and obj1._meta.model_name == 'user') or \
+           (obj2._meta.app_label == 'accounts' and obj2._meta.model_name == 'user'):
+            return True
+
+        return False
+
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
+        """Ensure migrations run on correct database"""
+        if app_label in self.common_db_apps:
+            return db == 'default'
+        if app_label in self.user_db_apps:
+            return db == 'userdata'
+        return None
+```
+
+### Migration Commands
+
+```bash
+# Migrate common database
+python manage.py migrate --database=default
+
+# Migrate userdata database
+python manage.py migrate --database=userdata
+
+# Migrate all databases
+python manage.py migrate --database=default && python manage.py migrate --database=userdata
+```
+
+### Cross-Database Considerations
+
+#### ⚠️ Important Limitations
+
+1. **No Foreign Key Constraints Across Databases**
+   - Django doesn't enforce ForeignKey constraints across databases
+   - Use `on_delete=models.DO_NOTHING` for cross-DB relations
+   - Implement data integrity in application layer
+
+2. **No Transactions Across Databases**
+   - Cannot use `transaction.atomic()` across multiple databases
+   - Use specific database transactions: `transaction.atomic(using='userdata')`
+   - Consider saga pattern or two-phase commit for critical operations
+
+3. **No JOIN Queries Across Databases**
+   - Cannot join tables from different databases in single query
+   - Must fetch data separately and join in Python
+   - Consider denormalization where appropriate
+
+#### Best Practices
+
+```python
+# ✅ GOOD: Separate transactions
+from django.db import transaction
+
+@transaction.atomic(using='default')
+def update_user_profile(user_id, data):
+    user = User.objects.using('default').get(id=user_id)
+    user.profile_data = data
+    user.save()
+
+@transaction.atomic(using='userdata')
+def create_portfolio(user_id, portfolio_data):
+    portfolio = Portfolio.objects.create(
+        user_id=user_id,  # Store user_id, not User object
+        **portfolio_data
+    )
+    return portfolio
+
+# ❌ BAD: Cannot span databases
+@transaction.atomic()  # This won't work across databases
+def create_user_and_portfolio(user_data, portfolio_data):
+    user = User.objects.create(**user_data)
+    portfolio = Portfolio.objects.create(user=user, **portfolio_data)
+```
+
+#### Querying Across Databases
+
+```python
+# User model is in 'default' DB
+# Portfolio model is in 'userdata' DB
+
+# Method 1: Use .using() explicitly
+user = User.objects.using('default').get(id=user_id)
+portfolios = Portfolio.objects.using('userdata').filter(user_id=user.id)
+
+# Method 2: Database router handles it automatically
+user = User.objects.get(id=user_id)  # Router directs to 'default'
+portfolios = Portfolio.objects.filter(user_id=user.id)  # Router directs to 'userdata'
+
+# Joining in Python (not SQL)
+portfolios_with_users = []
+for portfolio in portfolios:
+    user = User.objects.get(id=portfolio.user_id)
+    portfolios_with_users.append({
+        'portfolio': portfolio,
+        'user': user
+    })
+```
+
+### Django Apps Structure
+
+```
+backend/
+├── apps/
+│   ├── accounts/          # Common DB
+│   │   ├── models.py      # User, UserPreferences
+│   │   └── ...
+│   ├── stocks/            # Common DB
+│   │   ├── models.py      # StockQuote, StockFundamentals
+│   │   └── ...
+│   ├── portfolios/        # User DB
+│   │   ├── models.py      # Portfolio, Holding, Transaction
+│   │   └── ...
+│   ├── watchlists/        # User DB
+│   │   ├── models.py      # Watchlist, WatchlistItem
+│   │   └── ...
+│   ├── analysis/          # User DB
+│   │   ├── models.py      # StockAnalysis, PriceAlert
+│   │   └── ...
+│   └── screeners/         # User DB
+│       ├── models.py      # SavedScreener
+│       └── ...
+└── core/
+    ├── routers.py         # MultiDBRouter
+    └── ...
+```
+
+---
+
 ## 1. User & Authentication Models
+
+**Database**: `default` (Common DB)
+**App**: `accounts`
 
 ### User Integration with Authentik
 
@@ -69,24 +326,15 @@ class User(AbstractUser):
 class UserPreferences(models.Model):
     """
     Additional user preferences and settings
+
+    Note: This model is in the common DB, but references Portfolio/Watchlist
+    from the userdata DB. We store UUIDs instead of ForeignKeys.
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
 
-    # Display preferences
-    default_portfolio = models.ForeignKey(
-        'portfolios.Portfolio',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='+'
-    )
-    default_watchlist = models.ForeignKey(
-        'watchlists.Watchlist',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='+'
-    )
+    # Display preferences (store UUIDs, not ForeignKeys, due to cross-DB limitation)
+    default_portfolio_id = models.UUIDField(null=True, blank=True)
+    default_watchlist_id = models.UUIDField(null=True, blank=True)
 
     # Email notification settings
     email_on_price_alerts = models.BooleanField(default=True)
@@ -102,6 +350,28 @@ class UserPreferences(models.Model):
 
     class Meta:
         db_table = 'user_preferences'
+
+    @property
+    def default_portfolio(self):
+        """Fetch default portfolio from userdata DB"""
+        if not self.default_portfolio_id:
+            return None
+        from portfolios.models import Portfolio
+        try:
+            return Portfolio.objects.using('userdata').get(id=self.default_portfolio_id)
+        except Portfolio.DoesNotExist:
+            return None
+
+    @property
+    def default_watchlist(self):
+        """Fetch default watchlist from userdata DB"""
+        if not self.default_watchlist_id:
+            return None
+        from watchlists.models import Watchlist
+        try:
+            return Watchlist.objects.using('userdata').get(id=self.default_watchlist_id)
+        except Watchlist.DoesNotExist:
+            return None
 ```
 
 **Notes**:
@@ -112,6 +382,9 @@ class UserPreferences(models.Model):
 ---
 
 ## 2. Portfolio Models
+
+**Database**: `userdata` (User DB)
+**App**: `portfolios`
 
 ### Portfolio, Holding, Transaction
 
@@ -126,9 +399,23 @@ import uuid
 class Portfolio(models.Model):
     """
     User's investment portfolio
+
+    Cross-database note: User model is in 'default' DB, Portfolio is in 'userdata' DB.
+    We store user_id as UUIDField instead of ForeignKey to avoid cross-DB constraints.
+    Data integrity is maintained at application layer.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='portfolios')
+
+    # Store user_id directly instead of ForeignKey for cross-database compatibility
+    user_id = models.UUIDField(db_index=True)
+
+    # Alternative: If you want ForeignKey (but without DB-level constraint)
+    # user = models.ForeignKey(
+    #     'accounts.User',
+    #     on_delete=models.DO_NOTHING,
+    #     db_constraint=False,  # Disable DB-level foreign key constraint
+    #     related_name='portfolios'
+    # )
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -164,18 +451,28 @@ class Portfolio(models.Model):
         db_table = 'portfolios'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['user_id', '-created_at']),
+            models.Index(fields=['user_id', 'is_active']),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'name'],
+                fields=['user_id', 'name'],
                 name='unique_portfolio_name_per_user'
             )
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.name}"
+        return f"Portfolio {self.name} (User: {self.user_id})"
+
+    @property
+    def user(self):
+        """
+        Fetch user from common DB
+
+        Note: This performs a cross-database query. Cache the result if needed.
+        """
+        from accounts.models import User
+        return User.objects.using('default').get(id=self.user_id)
 
     @property
     def total_gain(self):
@@ -338,6 +635,9 @@ class Transaction(models.Model):
 
 ## 3. Watchlist Models
 
+**Database**: `userdata` (User DB)
+**App**: `watchlists`
+
 ```python
 # watchlists/models.py
 
@@ -347,9 +647,11 @@ import uuid
 class Watchlist(models.Model):
     """
     User's stock watchlist
+
+    Cross-database note: User model is in 'default' DB, Watchlist is in 'userdata' DB.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='watchlists')
+    user_id = models.UUIDField(db_index=True)
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -363,17 +665,23 @@ class Watchlist(models.Model):
         db_table = 'watchlists'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['user_id', '-created_at']),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'name'],
+                fields=['user_id', 'name'],
                 name='unique_watchlist_name_per_user'
             )
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.name}"
+        return f"Watchlist {self.name} (User: {self.user_id})"
+
+    @property
+    def user(self):
+        """Fetch user from common DB"""
+        from accounts.models import User
+        return User.objects.using('default').get(id=self.user_id)
 
 
 class WatchlistItem(models.Model):
@@ -432,6 +740,9 @@ class WatchlistItem(models.Model):
 
 ## 4. Stock Analysis Models
 
+**Database**: `userdata` (User DB)
+**App**: `analysis`
+
 ```python
 # analysis/models.py
 
@@ -450,9 +761,11 @@ class StockAnalysis(models.Model):
     - Management & Governance
     - Risks
     - Conclusion
+
+    Cross-database note: User model is in 'default' DB, StockAnalysis is in 'userdata' DB.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='analyses')
+    user_id = models.UUIDField(db_index=True)
 
     symbol = models.CharField(max_length=10, db_index=True)
 
@@ -473,19 +786,25 @@ class StockAnalysis(models.Model):
         db_table = 'stock_analyses'
         ordering = ['-last_saved']
         indexes = [
-            models.Index(fields=['user', 'symbol']),
-            models.Index(fields=['user', '-last_saved']),
+            models.Index(fields=['user_id', 'symbol']),
+            models.Index(fields=['user_id', '-last_saved']),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'symbol'],
+                fields=['user_id', 'symbol'],
                 name='unique_analysis_per_user_symbol'
             )
         ]
         verbose_name_plural = 'Stock analyses'
 
     def __str__(self):
-        return f"{self.user.username} - {self.symbol} Analysis"
+        return f"Analysis for {self.symbol} (User: {self.user_id})"
+
+    @property
+    def user(self):
+        """Fetch user from common DB"""
+        from accounts.models import User
+        return User.objects.using('default').get(id=self.user_id)
 
 
 class PriceAlert(models.Model):
@@ -499,7 +818,7 @@ class PriceAlert(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='price_alerts')
+    user_id = models.UUIDField(db_index=True)
 
     symbol = models.CharField(max_length=10, db_index=True)
     alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
@@ -514,17 +833,26 @@ class PriceAlert(models.Model):
         db_table = 'price_alerts'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['user_id', 'is_active']),
             models.Index(fields=['symbol', 'is_active']),
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.symbol} {self.alert_type} {self.target_value}"
+        return f"Alert for {self.symbol} {self.alert_type} {self.target_value} (User: {self.user_id})"
+
+    @property
+    def user(self):
+        """Fetch user from common DB"""
+        from accounts.models import User
+        return User.objects.using('default').get(id=self.user_id)
 ```
 
 ---
 
 ## 5. Stock Screener Models
+
+**Database**: `userdata` (User DB)
+**App**: `screeners`
 
 ```python
 # screeners/models.py
@@ -535,9 +863,11 @@ import uuid
 class SavedScreener(models.Model):
     """
     Saved stock screener with filter criteria
+
+    Cross-database note: User model is in 'default' DB, SavedScreener is in 'userdata' DB.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='screeners')
+    user_id = models.UUIDField(db_index=True)
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -561,16 +891,25 @@ class SavedScreener(models.Model):
         db_table = 'saved_screeners'
         ordering = ['-updated_at']
         indexes = [
-            models.Index(fields=['user', '-updated_at']),
+            models.Index(fields=['user_id', '-updated_at']),
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.name}"
+        return f"Screener {self.name} (User: {self.user_id})"
+
+    @property
+    def user(self):
+        """Fetch user from common DB"""
+        from accounts.models import User
+        return User.objects.using('default').get(id=self.user_id)
 ```
 
 ---
 
 ## 6. Stock Data Cache Models (Optional)
+
+**Database**: `default` (Common DB)
+**App**: `stocks`
 
 ```python
 # stocks/models.py
