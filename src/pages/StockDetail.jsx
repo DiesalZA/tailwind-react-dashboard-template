@@ -21,6 +21,9 @@ import {
   StockFundamentals,
   StockNews,
   PriceChangeIndicator,
+  FinancialStatements,
+  AnalysisNotes,
+  FinancialRatios,
 } from '../components/stock';
 import { formatStockPrice } from '../utils/stockUtils';
 import { getStockData } from '../utils/mockData';
@@ -31,8 +34,10 @@ export default function StockDetail() {
   const [quote, setQuote] = useState(null);
   const [fundamentals, setFundamentals] = useState(null);
   const [news, setNews] = useState([]);
+  const [financials, setFinancials] = useState(null);
+  const [ratios, setRatios] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, fundamentals, news
+  const [activeTab, setActiveTab] = useState('overview'); // overview, fundamentals, news, analysis
 
   const { addStock, isStockInWatchlist } = useWatchlist();
   const [inWatchlist, setInWatchlist] = useState([]);
@@ -59,6 +64,8 @@ export default function StockDetail() {
           setQuote(mockData.quote);
           setFundamentals(mockData.fundamentals);
           setNews(mockData.news);
+          setFinancials(mockData.financials);
+          setRatios(mockData.ratios);
           console.log(`📊 Using mock data for ${symbol}`);
           setLoading(false);
           return;
@@ -84,6 +91,8 @@ export default function StockDetail() {
         setQuote(mockData.quote);
         setFundamentals(mockData.fundamentals);
         setNews(mockData.news);
+        setFinancials(mockData.financials);
+        setRatios(mockData.ratios);
         console.log(`📊 Using mock data for ${symbol} (API failed)`);
       }
     }
@@ -106,6 +115,7 @@ export default function StockDetail() {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'fundamentals', label: 'Fundamentals' },
+    { id: 'analysis', label: 'Analysis' },
     { id: 'news', label: 'News' },
   ];
 
@@ -255,6 +265,19 @@ export default function StockDetail() {
 
                 {activeTab === 'fundamentals' && (
                   <StockFundamentals fundamentals={fundamentals} />
+                )}
+
+                {activeTab === 'analysis' && (
+                  <div className="space-y-6">
+                    {/* Analysis Notes */}
+                    <AnalysisNotes symbol={symbol} />
+
+                    {/* Financial Statements */}
+                    <FinancialStatements symbol={symbol} financialData={financials} />
+
+                    {/* Financial Ratios */}
+                    <FinancialRatios symbol={symbol} ratiosData={ratios} />
+                  </div>
                 )}
 
                 {activeTab === 'news' && (

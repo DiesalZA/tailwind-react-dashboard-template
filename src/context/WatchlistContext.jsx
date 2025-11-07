@@ -139,7 +139,13 @@ export default function WatchlistProvider({ children }) {
 
       if (response.success) {
         // Refresh items after adding
-        await selectWatchlist(currentWatchlist.id);
+        try {
+          await selectWatchlist(currentWatchlist.id);
+        } catch (refreshError) {
+          console.warn('Failed to refresh watchlist after adding stock:', refreshError);
+          // Stock was added successfully, just couldn't refresh the list
+          // User can manually refresh or it will update on next load
+        }
       } else {
         throw new Error(response.error?.message || 'Failed to add stock');
       }
@@ -178,16 +184,30 @@ export default function WatchlistProvider({ children }) {
     }
 
     setLoading(true);
-    const response = await watchlistService.addStocks(currentWatchlist.id, symbols);
 
-    if (response.success) {
-      await selectWatchlist(currentWatchlist.id);
-    } else {
-      setError(response.error);
+    try {
+      const response = await watchlistService.addStocks(currentWatchlist.id, symbols);
+
+      if (response.success) {
+        // Refresh items after adding
+        try {
+          await selectWatchlist(currentWatchlist.id);
+        } catch (refreshError) {
+          console.warn('Failed to refresh watchlist after adding stocks:', refreshError);
+          // Stocks were added successfully, just couldn't refresh the list
+        }
+      } else {
+        setError(response.error);
+      }
+
+      return response;
+    } catch (err) {
+      console.error('Failed to add stocks:', err);
+      setError(err.message);
+      return { success: false, error: { message: err.message } };
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-    return response;
   }, [currentWatchlist, selectWatchlist]);
 
   /**
@@ -278,17 +298,43 @@ export default function WatchlistProvider({ children }) {
    */
   const createWatchlist = useCallback(async (watchlistData) => {
     setLoading(true);
-    const response = await watchlistService.create(watchlistData);
 
-    if (response.success) {
-      await fetchWatchlists();
-      selectWatchlist(response.data.id);
-    } else {
-      setError(response.error);
+    try {
+      const response = await watchlistService.create(watchlistData);
+
+      if (response.success) {
+        // Refresh watchlist list
+        try {
+          await fetchWatchlists();
+
+          // Verify the watchlist still exists before selecting
+          // This prevents race conditions if user navigated away or watchlist was deleted
+          setWatchlists((currentWatchlists) => {
+            const watchlistExists = currentWatchlists.some(w => w.id === response.data.id);
+            if (watchlistExists) {
+              // Safe to select - watchlist exists in current state
+              selectWatchlist(response.data.id);
+            } else {
+              console.warn('Created watchlist not found in refreshed list, skipping auto-select');
+            }
+            return currentWatchlists; // Return unchanged
+          });
+        } catch (refreshError) {
+          console.warn('Failed to refresh after creating watchlist:', refreshError);
+          // Watchlist was created successfully, just couldn't refresh the list
+        }
+      } else {
+        setError(response.error);
+      }
+
+      return response;
+    } catch (err) {
+      console.error('Failed to create watchlist:', err);
+      setError(err.message);
+      return { success: false, error: { message: err.message } };
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-    return response;
   }, [fetchWatchlists, selectWatchlist]);
 
   /**
@@ -296,19 +342,33 @@ export default function WatchlistProvider({ children }) {
    */
   const updateWatchlist = useCallback(async (watchlistId, data) => {
     setLoading(true);
-    const response = await watchlistService.update(watchlistId, data);
 
-    if (response.success) {
-      await fetchWatchlists();
-      if (currentWatchlist?.id === watchlistId) {
-        setCurrentWatchlist(response.data);
+    try {
+      const response = await watchlistService.update(watchlistId, data);
+
+      if (response.success) {
+        // Refresh watchlist list
+        try {
+          await fetchWatchlists();
+          if (currentWatchlist?.id === watchlistId) {
+            setCurrentWatchlist(response.data);
+          }
+        } catch (refreshError) {
+          console.warn('Failed to refresh after updating watchlist:', refreshError);
+          // Watchlist was updated successfully, just couldn't refresh the list
+        }
+      } else {
+        setError(response.error);
       }
-    } else {
-      setError(response.error);
-    }
 
-    setLoading(false);
-    return response;
+      return response;
+    } catch (err) {
+      console.error('Failed to update watchlist:', err);
+      setError(err.message);
+      return { success: false, error: { message: err.message } };
+    } finally {
+      setLoading(false);
+    }
   }, [fetchWatchlists, currentWatchlist]);
 
   /**
@@ -316,20 +376,34 @@ export default function WatchlistProvider({ children }) {
    */
   const deleteWatchlist = useCallback(async (watchlistId) => {
     setLoading(true);
-    const response = await watchlistService.delete(watchlistId);
 
-    if (response.success) {
-      await fetchWatchlists();
-      if (currentWatchlist?.id === watchlistId) {
-        setCurrentWatchlist(null);
-        setItems([]);
+    try {
+      const response = await watchlistService.delete(watchlistId);
+
+      if (response.success) {
+        // Refresh watchlist list
+        try {
+          await fetchWatchlists();
+          if (currentWatchlist?.id === watchlistId) {
+            setCurrentWatchlist(null);
+            setItems([]);
+          }
+        } catch (refreshError) {
+          console.warn('Failed to refresh after deleting watchlist:', refreshError);
+          // Watchlist was deleted successfully, just couldn't refresh the list
+        }
+      } else {
+        setError(response.error);
       }
-    } else {
-      setError(response.error);
-    }
 
-    setLoading(false);
-    return response;
+      return response;
+    } catch (err) {
+      console.error('Failed to delete watchlist:', err);
+      setError(err.message);
+      return { success: false, error: { message: err.message } };
+    } finally {
+      setLoading(false);
+    }
   }, [fetchWatchlists, currentWatchlist]);
 
   /**

@@ -10,3 +10,6 @@ export { default as StockStats } from './StockStats';
 export { default as StockFundamentals } from './StockFundamentals';
 export { default as StockNews } from './StockNews';
 export { default as StockPriceChart } from './StockPriceChart';
+export { default as FinancialStatements } from './FinancialStatements';
+export { default as AnalysisNotes } from './AnalysisNotes';
+export { default as FinancialRatios } from './FinancialRatios';

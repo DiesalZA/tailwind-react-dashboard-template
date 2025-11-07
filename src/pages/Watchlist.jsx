@@ -19,6 +19,7 @@ export default function Watchlist() {
   const [newWatchlistName, setNewWatchlistName] = useState('');
   const [newWatchlistDescription, setNewWatchlistDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
 
   const {
     watchlists,
@@ -38,19 +39,39 @@ export default function Watchlist() {
     if (!newWatchlistName.trim()) return;
 
     setIsCreating(true);
+    setCreateError(null);
+
     try {
-      await createWatchlist({
+      const response = await createWatchlist({
         name: newWatchlistName,
         description: newWatchlistDescription,
       });
-      setShowCreateModal(false);
-      setNewWatchlistName('');
-      setNewWatchlistDescription('');
+
+      // Only close modal and reset if explicitly successful
+      if (response?.success === true) {
+        setShowCreateModal(false);
+        setNewWatchlistName('');
+        setNewWatchlistDescription('');
+        setCreateError(null);
+      } else {
+        // Show error to user
+        setCreateError(
+          response?.error?.message || 'Failed to create watchlist. Please try again.'
+        );
+      }
     } catch (err) {
       console.error('Failed to create watchlist:', err);
+      setCreateError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    setNewWatchlistName('');
+    setNewWatchlistDescription('');
+    setCreateError(null);
   };
 
   const handleAddStock = async (symbol, notes) => {
@@ -217,7 +238,7 @@ export default function Watchlist() {
             className="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity z-50"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
-                setShowCreateModal(false);
+                handleCloseCreateModal();
               }
             }}
           />
@@ -282,17 +303,42 @@ export default function Watchlist() {
                       className="form-textarea w-full"
                     />
                   </div>
+
+                  {/* Error message */}
+                  {createError && (
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50">
+                      <div className="flex items-start">
+                        <svg
+                          className="w-5 h-5 text-red-600 dark:text-red-400 mr-2 mt-0.5 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+                            Error creating watchlist
+                          </p>
+                          <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                            {createError}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700/60 bg-gray-50 dark:bg-gray-900/50">
                   <div className="flex items-center justify-end gap-3">
                     <button
-                      onClick={() => {
-                        setShowCreateModal(false);
-                        setNewWatchlistName('');
-                        setNewWatchlistDescription('');
-                      }}
+                      onClick={handleCloseCreateModal}
                       className="btn-sm border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-300"
                       disabled={isCreating}
                     >

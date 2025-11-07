@@ -54,16 +54,19 @@ export default function AddStockModal({ isOpen, onClose, onAdd }) {
     }
   }, [isOpen]);
 
-  // Focus trap
+  // Focus trap - compute focusable elements on each Tab keypress
+  // Performance impact is negligible as this only runs on Tab keypresses
   useEffect(() => {
     const handleTab = (e) => {
-      if (!isOpen || e.key !== 'Tab') return;
+      if (!isOpen || e.key !== 'Tab' || !modalRef.current) return;
 
-      const focusableElements = modalRef.current?.querySelectorAll(
+      // Get focusable elements at the time of the keypress
+      const elements = modalRef.current.querySelectorAll(
         'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
+      const focusableElements = Array.from(elements);
 
-      if (!focusableElements || focusableElements.length === 0) return;
+      if (focusableElements.length === 0) return;
 
       const firstElement = focusableElements[0];
       const lastElement = focusableElements[focusableElements.length - 1];
